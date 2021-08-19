@@ -129,3 +129,4 @@ XMR3:0 += R1:0 * R3:2
 ## Для справки Downconverter
 1. ФНЧ на основе скользящего среднего. Хорошее описание про фильтр 
 [тут](http://www.dsplib.ru/content/cic/cic.html) и [тут](http://www.dsplib.ru/content/cicid/cicid.html)
+
