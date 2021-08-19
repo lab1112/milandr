@@ -1,8 +1,21 @@
 /*Программа сбора и записи данных АЦП в файл*/
-#include "H.h"
+#include <hal_1967VN044.h>
+#include "hal_1967VN044.h"
+#include <builtins.h>
+#include <sysreg.h>
+#include <stddef.h>
+#include "board.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "../inc/memmap.h"
+#include "../inc/_dduc.h"
+#include "5101HB015.h"
+#include "5101HB015_SPI_1967VC3.h"
 
 #define DMA_CH	 8
 #define	BUF_SIZE 32768
+
+#define OUTPUTFNAME "adc.bin"
 
 //static uint8_t MESSAGE = 0x32;
 /*Буфер c данными АЦП (каждое слово данных (32 бита) содежит 2 отсчета АЦП)*/
@@ -72,7 +85,7 @@ int main(void)
   HAL_DMA_WaitForChannel(DMA_CH) ;      // Ожидание выполнения до конца передачи
 
   //Запись в файл
-  fid = fopen("adc.bin","wb") ;
+  fid = fopen(OUTPUTFNAME,"wb") ;
   if(fid == 0){ puts("Unable open output file.") ; return(-1) ; }
   fwrite(adc,1,sizeof(adc),fid) ;
   fclose(fid) ;

@@ -1,14 +1,24 @@
-#include "H.h"
+#include <hal_1967VN044.h>
+#include "hal_1967VN044.h"
+#include <builtins.h>
+#include <sysreg.h>
+#include <stddef.h>
+#include "board.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "../inc/memmap.h"
+#include "../inc/_dduc.h"
+#include "5101HB015.h"
+#include "5101HB015_SPI_1967VC3.h"
 
 /*Режим 22/10 - увелечение DXM до 22 бит, и  уменьшение DXC до 10 бит.
 Увеличивает смещение адреса >32768 */
 
-#define DDUC_STEP (*(uint32_t*)(DDUC_BASE0+DDUC_STEP_OFFSET))
-#define DDUC_CR   (*(uint32_t*)(DDUC_BASE0+DDUC_CR_OFFSET))
 #define N 32768//КОЛИЧЕСТВО ЭЛЕМЕНТОВ В МАССИВЕ ПРИЁМНИКА
-#define DMA_CH_RX 8//НОМЕР DMA ПРИЁМНИКА ( УСТРОЙСТВО -> ПАМЯТЬ )
+#define DMA_CH_OUTPUT 8//НОМЕР DMA ПРИЁМНИКА ( УСТРОЙСТВО -> ПАМЯТЬ )
+#define OUTPUTFNAME "oddc.bin"
 
-__attribute__((aligned(4))) uint32_t tcb[4] ;//DMA_RX
+__attribute__((aligned(4))) uint32_t otcb[4] ;//DMA_RX
 __attribute__((aligned(4))) uint32_t buf[N] ; 
 
 /*Определение типа памяти для контроллера DMA*/
@@ -93,8 +103,8 @@ int main(void)
   //Инициализация передатчика LINK порта  0
   HAL_LinkTx_Enable( 0, &LINK_DOWN_INI_STR, &LINK_TX_INI_STR  );
 
-    DDUC_BASE0_STEP_OFFSET = 23593;//REG_STEP
-    DDUC_BASE0_CR_OFFSET   = SR_DDUC_ENABLE    |
+    DDUC_STEP = 23593;//REG_STEP
+    DDUC_CR   = SR_DDUC_ENABLE    |
                              SR_FIR_TAP*15     |
                              SR_SRC_LINK       |
                              SR_ROUND_OFF      |
@@ -107,33 +117,35 @@ int main(void)
                              SR_SHIFT*15;// default - 0x101
   /*SETTING DMA*/
   //ПРИЁМНИК
-  TCB_TYPE_MEMORY = HAL_DMA_INIT_MEM_TYPE(&BUF_RX);//ОПРЕДЕЛЕНИЕ ТИПА ИСПОЛЬЗУЕМОЙ ПАМЯТИ
+  TCB_TYPE_MEMORY = HAL_DMA_INIT_MEM_TYPE(&buf);//ОПРЕДЕЛЕНИЕ ТИПА ИСПОЛЬЗУЕМОЙ ПАМЯТИ
   if(TCB_TYPE_MEMORY == -1){ puts("ERROR TYPE MEMORY - RX"); }
-  HAL_DMA_RqstClr(DMA_CH_RX);                 //ОЧИСТКА ИСТОЧНИКА ЗАПРОСА DMA
-  HAL_DMA_RqstSet(DMA_CH_RX, dmaUPDOWN0);     //УСТАНОВКА НОВОГО ИСТОЧНИКА ОПРОСА ДЛЯ КАНАЛА DMA_CH_RX
-  TCB_RX[0] = ((void *)BUF_RX);               //DI
-  TCB_RX[1] = ((N) << 16) | 4;                //DX
-  TCB_RX[2] = 0;                              //DY
-  TCB_RX[3] |= ( TCB_TYPE_MEMORY | TCB_QUAD); //DP
+  HAL_DMA_RqstClr(DMA_CH_OUTPUT);                 //ОЧИСТКА ИСТОЧНИКА ЗАПРОСА DMA
+  HAL_DMA_RqstSet(DMA_CH_OUTPUT, dmaUPDOWN0);     //УСТАНОВКА НОВОГО ИСТОЧНИКА ОПРОСА ДЛЯ КАНАЛА DMA_CH_OUTPUT
+  otcb[0] = ((void *)buf);               //DI
+  otcb[1] = ((N) << 16) | 4;                //DX
+  otcb[2] = 0;                              //DY
+  otcb[3] |= ( TCB_TYPE_MEMORY | TCB_QUAD); //DP
 
   /*WRITE_SETTING_IN_DMA*/
-  HAL_DMA_WriteDC(DMA_CH_RX, &TCB_RX);//ЗАПИСЬ СТРУКТУРЫ В РЕГИСТР TCB И ЗАПУСК РАБОТЫ КАНАЛА DMA_CH_TX
+  HAL_DMA_WriteDC(DMA_CH_OUTPUT, &otcb);//ЗАПИСЬ СТРУКТУРЫ В РЕГИСТР TCB И ЗАПУСК РАБОТЫ КАНАЛА DMA_CH_TX
 
   /*MAIN_1*/
-  ErrFlag = HAL_DMA_WaitForChannel(DMA_CH_RX);
+  ErrFlag = HAL_DMA_WaitForChannel(DMA_CH_OUTPUT);
   if(ErrFlag == 0)	 { printf("OK TX DMA - %i\n",DMA_CNT++); }
   else if(ErrFlag == 1){ puts("ERROR TX DMA") ; return -1;   }
   else if(ErrFlag == 2){ puts("TX DMA OFF")   ; return -1;   }
 
   /*WRITE_FILE_DATA*/
+  /*
   DDUC_BASE0_STEP_OFFSET = dducregs[0];
   DDUC_BASE0_CR_OFFSET   = dducregs[1];
   FLAG_SETTING_UPDOWN    = dducregs[2];
+  */
   
   /*OPEN_WRITE_FILE_DATA*/
-  FP_OUT = fopen("ODDUC.bin","w+b");
+  FP_OUT = fopen(OUTPUTFNAME,"w+b");
   if(FP_OUT == 0){ puts("NOT OPEN FILE ODDUC.bin") ; return -1 ;}
-  fwrite((void *)BUF_RX,sizeof(uint32_t),N,FP_OUT);
+  fwrite((void *)buf,sizeof(uint32_t),N,FP_OUT);
   fclose(FP_OUT);
   return 0;
 }

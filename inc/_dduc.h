@@ -14,6 +14,13 @@
 #define DDUC_XCR_OFFSET        9 //XCR R/W-0 	 Регистр управления инициализацией от внешних выводов
 #define DDUC_RCNT_STEP_OFFSET 10 //RCNT_STEP R-0 Составной регистр формата {RCNT_buf,0x0000, STEP}
 
+#ifndef DDUC_BASE
+#define DDUC_BASE DDUC_BASE0
+#endif
+
+#define DDUC_STEP (*(uint32_t*)(DDUC_BASE+DDUC_STEP_OFFSET))
+#define DDUC_CR   (*(uint32_t*)(DDUC_BASE+DDUC_CR_OFFSET))
+
 /*____________________________________CR BIT FIELDS____________________________________*/
 /*(0) "EN" - Бит разрешение работы */
 #define SR_DDUC_ENABLE	  0x00000001 //1 – работа разрешена
